@@ -1,0 +1,198 @@
+name: Build and Publish Simplewise Go
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Ollama model tag to bundle (e.g. llama3.2:1b or llama3.2:3b)'
+        required: false
+        default: 'llama3.2:1b'
+      platform:
+        description: 'Platform to build (mac, windows, or all)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - mac
+          - windows
+          - all
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish-macos:
+    runs-on: macos-latest
+    if: ${{ github.event.inputs.platform == 'mac' || github.event.inputs.platform == 'all' || !github.event.inputs.platform }}
+
+    env:
+      # Default model can be overridden via workflow_dispatch input
+      OLLAMA_MODEL: ${{ github.event.inputs.model }}
+      # Ensure CI mode for deterministic installs
+      CI: true
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          repository: simplewise/simplewise-go
+          path: source
+          token: ${{ secrets.SIMPLEWISE_GO_PAT }}
+
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          path: current
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: source/package-lock.json
+
+      - name: Install dependencies
+        working-directory: source
+        run: npm ci
+
+      - name: Start Ollama server and install current model
+        working-directory: source
+        run: |
+          npm run ollama -- serve &
+          # Give the server a moment to start
+          sleep 5
+          # Install the currently configured model into resources/ollama/models
+          npm run ollama -- install
+
+      - name: Remove Windows binaries (macOS build)
+        working-directory: source
+        run: |
+          if [ -d "resources/ollama/ollama-windows" ]; then
+            rm -rf resources/ollama/ollama-windows
+            echo "Removed Windows binaries for macOS build"
+          fi
+
+      - name: Build with Electron Forge (macOS)
+        working-directory: source
+        run: |
+          npm run make
+
+      - name: Get version from package.json
+        working-directory: source
+        id: package_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION-mac" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION-mac"
+
+      - name: Find build artifacts (macOS)
+        id: find_artifacts_mac
+        run: |
+          ARTIFACTS=$(find source/out/make -type f \( -name "*.dmg" -o -name "*.zip" \) | tr '\n' ' ')
+          echo "artifacts=$ARTIFACTS" >> $GITHUB_OUTPUT
+          echo "Found artifacts: $ARTIFACTS"
+
+      - name: Create release with platform suffix
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.package_version.outputs.version }}
+          name: Release v${{ steps.package_version.outputs.version }}
+          body: |
+            macOS build of Simplewise Go
+            
+            Model: ${{ github.event.inputs.model || 'llama3.2:1b' }}
+            Platform: macOS
+          files: ${{ steps.find_artifacts_mac.outputs.artifacts }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-publish-windows:
+    runs-on: windows-latest
+    if: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' || !github.event.inputs.platform }}
+
+    env:
+      OLLAMA_MODEL: ${{ github.event.inputs.model }}
+      CI: true
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          repository: simplewise/simplewise-go
+          path: source
+          token: ${{ secrets.SIMPLEWISE_GO_PAT }}
+
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          path: current
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: source/package-lock.json
+
+      - name: Install dependencies
+        working-directory: source
+        run: npm ci
+
+      - name: Start Ollama server and install current model
+        working-directory: source
+        shell: pwsh
+        run: |
+          npm run ollama -- serve &
+          Start-Sleep -Seconds 5
+          npm run ollama -- install
+
+      - name: Remove macOS binaries (Windows build)
+        working-directory: source
+        shell: pwsh
+        run: |
+          if (Test-Path "resources/ollama/ollama-darwin") {
+            Remove-Item -Recurse -Force "resources/ollama/ollama-darwin"
+            Write-Host "Removed macOS binaries for Windows build"
+          }
+
+      - name: Build with Electron Forge (Windows)
+        working-directory: source
+        run: |
+          npm run make
+
+      - name: Get version from package.json
+        working-directory: source
+        id: package_version
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $versionWithSuffix = "$version-win"
+          echo "version=$versionWithSuffix" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Version: $versionWithSuffix"
+
+      - name: Find build artifacts (Windows)
+        id: find_artifacts_win
+        shell: pwsh
+        run: |
+          $artifacts = Get-ChildItem -Path "source/out/make" -Recurse -File | Where-Object { $_.Extension -in @('.exe', '.zip') } | ForEach-Object { $_.FullName }
+          $artifactsString = $artifacts -join ' '
+          echo "artifacts=$artifactsString" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Found artifacts: $artifactsString"
+
+      - name: Create release with platform suffix
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.package_version.outputs.version }}
+          name: Release v${{ steps.package_version.outputs.version }}
+          body: |
+            Windows build of Simplewise Go
+            
+            Model: ${{ github.event.inputs.model || 'llama3.2:1b' }}
+            Platform: Windows
+          files: ${{ steps.find_artifacts_win.outputs.artifacts }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
