@@ -55,6 +55,11 @@ jobs:
         working-directory: source
         run: npm ci
 
+      - name: Verify OLLAMA_MODEL environment variable
+        working-directory: source
+        run: |
+          echo "OLLAMA_MODEL is set to: $OLLAMA_MODEL"
+
       - name: Rebuild native modules for Electron
         working-directory: source
         run: |
@@ -81,6 +86,9 @@ jobs:
       - name: Build with Electron Forge (macOS)
         working-directory: source
         run: |
+          echo "Building with OLLAMA_MODEL: $OLLAMA_MODEL"
+          # OLLAMA_MODEL is available from job-level env to all steps
+          # TypeScript can access it via process.env.OLLAMA_MODEL at build time
           npm run make
 
       - name: Get version from package.json
@@ -150,6 +158,12 @@ jobs:
         working-directory: source
         run: npm ci
 
+      - name: Verify OLLAMA_MODEL environment variable
+        working-directory: source
+        shell: pwsh
+        run: |
+          Write-Host "OLLAMA_MODEL is set to: $env:OLLAMA_MODEL"
+
       - name: Rebuild native modules for Electron
         working-directory: source
         shell: pwsh
@@ -180,7 +194,11 @@ jobs:
 
       - name: Build with Electron Forge (Windows)
         working-directory: source
+        shell: pwsh
         run: |
+          Write-Host "Building with OLLAMA_MODEL: $env:OLLAMA_MODEL"
+          # OLLAMA_MODEL is available from job-level env to all steps
+          # TypeScript can access it via process.env.OLLAMA_MODEL at build time
           npm run make
 
       - name: Get version from package.json
