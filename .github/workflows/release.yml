@@ -94,9 +94,11 @@ jobs:
       - name: Find build artifacts (macOS)
         id: find_artifacts_mac
         run: |
-          ARTIFACTS=$(find source/out/make -type f \( -name "*.dmg" -o -name "*.zip" \) | tr '\n' ' ')
-          echo "artifacts=$ARTIFACTS" >> $GITHUB_OUTPUT
-          echo "Found artifacts: $ARTIFACTS"
+          ARTIFACTS=$(find source/out/make -type f \( -name "*.dmg" -o -name "*.zip" \))
+          echo "Found artifacts:"
+          echo "$ARTIFACTS"
+          # Write artifacts to a file for the release action
+          echo "$ARTIFACTS" > artifacts.txt
 
       - name: Create release with platform suffix
         uses: softprops/action-gh-release@v1
@@ -108,7 +110,9 @@ jobs:
             
             Model: ${{ github.event.inputs.model || 'llama3.2:1b' }}
             Platform: macOS
-          files: ${{ steps.find_artifacts_mac.outputs.artifacts }}
+          files: |
+            source/out/make/**/*.dmg
+            source/out/make/**/*.zip
           draft: false
           prerelease: false
         env:
@@ -193,9 +197,8 @@ jobs:
         shell: pwsh
         run: |
           $artifacts = Get-ChildItem -Path "source/out/make" -Recurse -File | Where-Object { $_.Extension -in @('.exe', '.zip') } | ForEach-Object { $_.FullName }
-          $artifactsString = $artifacts -join ' '
-          echo "artifacts=$artifactsString" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Found artifacts: $artifactsString"
+          Write-Host "Found artifacts:"
+          $artifacts | ForEach-Object { Write-Host $_ }
 
       - name: Create release with platform suffix
         uses: softprops/action-gh-release@v1
@@ -207,7 +210,9 @@ jobs:
             
             Model: ${{ github.event.inputs.model || 'llama3.2:1b' }}
             Platform: Windows
-          files: ${{ steps.find_artifacts_win.outputs.artifacts }}
+          files: |
+            source/out/make/**/*.exe
+            source/out/make/**/*.zip
           draft: false
           prerelease: false
         env:
