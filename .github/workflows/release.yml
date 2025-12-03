@@ -3,10 +3,6 @@ name: Build and Publish Simplewise Go
 on:
   workflow_dispatch:
     inputs:
-      model:
-        description: 'Ollama model tag to bundle (e.g. llama3.2:1b or llama3.2:3b)'
-        required: false
-        default: 'llama3.2:1b'
       platform:
         description: 'Platform to build (mac, windows, or all)'
         required: false
@@ -26,8 +22,6 @@ jobs:
     if: ${{ github.event.inputs.platform == 'mac' || github.event.inputs.platform == 'all' || !github.event.inputs.platform }}
 
     env:
-      # Default model can be overridden via workflow_dispatch input
-      OLLAMA_MODEL: ${{ github.event.inputs.model }}
       # Ensure CI mode for deterministic installs
       CI: true
 
@@ -55,11 +49,6 @@ jobs:
         working-directory: source
         run: npm ci
 
-      - name: Verify OLLAMA_MODEL environment variable
-        working-directory: source
-        run: |
-          echo "OLLAMA_MODEL is set to: $OLLAMA_MODEL"
-
       - name: Rebuild native modules for Electron
         working-directory: source
         run: |
@@ -86,9 +75,6 @@ jobs:
       - name: Build with Electron Forge (macOS)
         working-directory: source
         run: |
-          echo "Building with OLLAMA_MODEL: $OLLAMA_MODEL"
-          # OLLAMA_MODEL is available from job-level env to all steps
-          # TypeScript can access it via process.env.OLLAMA_MODEL at build time
           npm run make
 
       - name: Get version from package.json
@@ -116,7 +102,6 @@ jobs:
           body: |
             macOS build of Simplewise Go
             
-            Model: ${{ github.event.inputs.model || 'llama3.2:1b' }}
             Platform: macOS
           files: |
             source/out/make/**/*.dmg
@@ -131,7 +116,6 @@ jobs:
     if: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' || !github.event.inputs.platform }}
 
     env:
-      OLLAMA_MODEL: ${{ github.event.inputs.model }}
       CI: true
 
     steps:
@@ -157,12 +141,6 @@ jobs:
       - name: Install dependencies
         working-directory: source
         run: npm ci
-
-      - name: Verify OLLAMA_MODEL environment variable
-        working-directory: source
-        shell: pwsh
-        run: |
-          Write-Host "OLLAMA_MODEL is set to: $env:OLLAMA_MODEL"
 
       - name: Rebuild native modules for Electron
         working-directory: source
@@ -196,9 +174,6 @@ jobs:
         working-directory: source
         shell: pwsh
         run: |
-          Write-Host "Building with OLLAMA_MODEL: $env:OLLAMA_MODEL"
-          # OLLAMA_MODEL is available from job-level env to all steps
-          # TypeScript can access it via process.env.OLLAMA_MODEL at build time
           npm run make
 
       - name: Get version from package.json
@@ -226,7 +201,6 @@ jobs:
           body: |
             Windows build of Simplewise Go
             
-            Model: ${{ github.event.inputs.model || 'llama3.2:1b' }}
             Platform: Windows
           files: |
             source/out/make/**/*.exe
