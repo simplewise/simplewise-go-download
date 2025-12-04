@@ -16,13 +16,17 @@ Download and install Simplewise Go by dragging the application to your Applicati
 
 ### Step 2: Remove Quarantine Attribute
 
-Since this is an unsigned app, macOS adds a quarantine flag (`com.apple.quarantine`) when downloading. To remove this flag, open Terminal and run:
+When you try to open the app after installation, you may see an error message saying the app is "damaged" or cannot be opened. This happens because macOS adds a quarantine flag (`com.apple.quarantine`) when downloading unsigned apps.
+
+![macOS Damaged Error](assets/mac-damaged-error.png)
+
+To fix this, open Terminal and run:
 
 ```bash
 xattr -cr "/Applications/simplewise-go.app"
 ```
 
-This command removes the quarantine attribute, allowing the app to run without macOS security warnings.
+This command removes the quarantine attribute, allowing the app to run without macOS security warnings. After running this command, you should be able to open Simplewise Go normally.
 
 ## Commercial License
 
