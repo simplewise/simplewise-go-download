@@ -4,6 +4,26 @@
 
 Simplewise Go is a software application that enables local AI model downloads and management. This tool provides an interface for downloading and working with various AI models, including Llama models from Meta.
 
+## Installation (macOS)
+
+To install Simplewise Go on macOS, follow these steps:
+
+### Step 1: Install the App
+
+Download and install Simplewise Go by dragging the application to your Applications folder.
+
+![Install Simplewise Go](assets/mac-install.png)
+
+### Step 2: Remove Quarantine Attribute
+
+Since this is an unsigned app, macOS adds a quarantine flag (`com.apple.quarantine`) when downloading. To remove this flag, open Terminal and run:
+
+```bash
+xattr -cr "/Applications/simplewise-go.app"
+```
+
+This command removes the quarantine attribute, allowing the app to run without macOS security warnings.
+
 ## Commercial License
 
 **Copyright © Simplewise AS**
