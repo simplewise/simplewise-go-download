@@ -28,6 +28,16 @@ xattr -cr "/Applications/simplewise-go.app"
 
 This command removes the quarantine attribute, allowing the app to run without macOS security warnings. After running this command, you should be able to open Simplewise Go normally.
 
+### Step 3: Close Ollama Process (if needed)
+
+If you need to close the Ollama process (for example, if it's already running on port 11400), you can use the following command in Terminal:
+
+```bash
+lsof -ti:11400 | xargs kill -9
+```
+
+This command finds any process using port 11400 (Ollama's default port) and terminates it.
+
 ## Commercial License
 
 **Copyright © Simplewise AS**
