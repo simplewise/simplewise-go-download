@@ -1,5 +1,7 @@
 # Simplewise Go Download
 
+![Simplewise Go](assets/simplewise-go.png)
+
 ## About Simplewise Go
 
 Simplewise Go is a software application that enables local AI model downloads and management. This tool provides an interface for downloading and working with various AI models, including Llama models from Meta.
