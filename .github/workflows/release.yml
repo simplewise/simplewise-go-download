@@ -163,9 +163,52 @@ jobs:
           cache: 'npm'
           cache-dependency-path: source/package-lock.json
 
+      - name: Clean npm cache and node_modules (Windows)
+        working-directory: source
+        shell: pwsh
+        run: |
+          # Clean npm cache
+          npm cache clean --force
+          # Remove node_modules if it exists (ignore errors if files are locked)
+          if (Test-Path "node_modules") {
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "node_modules"
+            Start-Sleep -Seconds 2
+          }
+
       - name: Install dependencies
         working-directory: source
-        run: npm ci
+        shell: pwsh
+        run: |
+          # Retry npm ci up to 3 times with delays
+          $maxRetries = 3
+          $retryCount = 0
+          $success = $false
+          
+          while ($retryCount -lt $maxRetries -and -not $success) {
+            try {
+              Write-Host "Attempt $($retryCount + 1) of $maxRetries"
+              npm ci
+              if ($LASTEXITCODE -eq 0) {
+                $success = $true
+              } else {
+                throw "npm ci failed with exit code $LASTEXITCODE"
+              }
+            } catch {
+              $retryCount++
+              if ($retryCount -lt $maxRetries) {
+                Write-Host "Installation failed, retrying in 5 seconds..."
+                Start-Sleep -Seconds 5
+                # Clean up partially installed files
+                if (Test-Path "node_modules") {
+                  Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "node_modules"
+                  Start-Sleep -Seconds 2
+                }
+              } else {
+                Write-Host "All retry attempts failed"
+                exit 1
+              }
+            }
+          }
 
       - name: Rebuild native modules for Electron
         working-directory: source
