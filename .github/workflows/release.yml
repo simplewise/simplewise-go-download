@@ -76,6 +76,7 @@ jobs:
           npx --yes electron-rebuild -f -w better-sqlite3 || npm rebuild better-sqlite3 --runtime=electron --target=$(node -p "require('electron/package.json').version")
 
       - name: Start Ollama server and install current model
+        if: ${{ github.event.inputs.installation_mode != 'INSTALL' }}
         working-directory: source
         run: |
           npm run ollama -- serve &
@@ -178,6 +179,7 @@ jobs:
           }
 
       - name: Start Ollama server and install current model
+        if: ${{ github.event.inputs.installation_mode != 'INSTALL' }}
         working-directory: source
         shell: pwsh
         run: |
