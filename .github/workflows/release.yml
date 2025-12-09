@@ -12,6 +12,22 @@ on:
           - mac
           - windows
           - all
+      chat_model:
+        description: 'Chat model for conversation (e.g. gemma3n:e4b)'
+        required: false
+        default: 'gemma3n:e4b'
+      embed_model:
+        description: 'Embedding model for knowledge base (e.g. embeddinggemma:300m)'
+        required: false
+        default: 'embeddinggemma:300m'
+      installation_mode:
+        description: 'Installation mode: PACKAGED (models bundled) or INSTALL (models need installation)'
+        required: false
+        default: 'INSTALL'
+        type: choice
+        options:
+          - PACKAGED
+          - INSTALL
 
 permissions:
   contents: write
@@ -24,6 +40,10 @@ jobs:
     env:
       # Ensure CI mode for deterministic installs
       CI: true
+      # AI Models Configuration
+      CHAT_MODEL: ${{ github.event.inputs.chat_model }}
+      EMBED_MODEL: ${{ github.event.inputs.embed_model }}
+      INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
 
     steps:
       - name: Checkout source repository
@@ -117,6 +137,10 @@ jobs:
 
     env:
       CI: true
+      # AI Models Configuration
+      CHAT_MODEL: ${{ github.event.inputs.chat_model }}
+      EMBED_MODEL: ${{ github.event.inputs.embed_model }}
+      INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
 
     steps:
       - name: Checkout source repository
