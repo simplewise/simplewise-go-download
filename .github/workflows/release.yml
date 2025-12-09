@@ -13,7 +13,7 @@ on:
           - windows
           - all
       chat_model:
-        description: 'Chat model for conversation (e.g. gemma3n:e4b)'
+        description: 'Chat model for conversation (e.g. gemma3:270m or gemma3n:e4b)'
         required: false
         default: 'gemma3n:e4b'
       embed_model:
