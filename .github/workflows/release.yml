@@ -13,9 +13,9 @@ on:
           - windows
           - all
       chat_model:
-        description: 'Chat model for conversation (e.g. gemma3:270m or gemma3n:e4b)'
+        description: 'Chat model for conversation (e.g. gemma3:270m or gemma3n:e2b)'
         required: false
-        default: 'gemma3n:e4b'
+        default: 'gemma3n:e2b'
       embed_model:
         description: 'Embedding model for knowledge base (e.g. embeddinggemma:300m)'
         required: false
