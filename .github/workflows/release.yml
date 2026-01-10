@@ -44,7 +44,8 @@ jobs:
       CHAT_MODEL: ${{ github.event.inputs.chat_model }}
       EMBED_MODEL: ${{ github.event.inputs.embed_model }}
       INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
-
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
@@ -93,10 +94,13 @@ jobs:
             echo "Removed Windows binaries for macOS build"
           fi
 
-      - name: Build with Electron Forge (macOS)
+      - name: Build and Publish with Electron Forge (macOS)
         working-directory: source
+        env:
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
         run: |
-          npm run make
+          npm run publish
 
       - name: Get version from package.json
         working-directory: source
@@ -104,18 +108,10 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION-mac" >> $GITHUB_OUTPUT
+          echo "base_version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION-mac"
 
-      - name: Find build artifacts (macOS)
-        id: find_artifacts_mac
-        run: |
-          ARTIFACTS=$(find source/out/make -type f \( -name "*.dmg" -o -name "*.zip" \))
-          echo "Found artifacts:"
-          echo "$ARTIFACTS"
-          # Write artifacts to a file for the release action
-          echo "$ARTIFACTS" > artifacts.txt
-
-      - name: Create release with platform suffix
+      - name: Create release with S3 download links
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.package_version.outputs.version }}
@@ -124,9 +120,11 @@ jobs:
             macOS build of Simplewise Go
             
             Platform: macOS
-          files: |
-            source/out/make/**/*.dmg
-            source/out/make/**/*.zip
+            
+            ## Download from S3
+            
+            - [DMG Installer](https://simplewise-go-download.s3.amazonaws.com/${{ steps.package_version.outputs.base_version }}/simplewise-go-${{ steps.package_version.outputs.base_version }}-darwin-x64.dmg)
+            - [ZIP Archive](https://simplewise-go-download.s3.amazonaws.com/${{ steps.package_version.outputs.base_version }}/simplewise-go-darwin-x64-${{ steps.package_version.outputs.base_version }}.zip)
           draft: false
           prerelease: false
         env:
@@ -142,7 +140,8 @@ jobs:
       CHAT_MODEL: ${{ github.event.inputs.chat_model }}
       EMBED_MODEL: ${{ github.event.inputs.embed_model }}
       INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
-
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
@@ -239,11 +238,14 @@ jobs:
             Write-Host "Removed macOS binaries for Windows build"
           }
 
-      - name: Build with Electron Forge (Windows)
+      - name: Build and Publish with Electron Forge (Windows)
         working-directory: source
         shell: pwsh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
         run: |
-          npm run make
+          npm run publish
 
       - name: Get version from package.json
         working-directory: source
@@ -252,17 +254,10 @@ jobs:
           $version = (Get-Content package.json | ConvertFrom-Json).version
           $versionWithSuffix = "$version-win"
           echo "version=$versionWithSuffix" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "base_version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Version: $versionWithSuffix"
 
-      - name: Find build artifacts (Windows)
-        id: find_artifacts_win
-        shell: pwsh
-        run: |
-          $artifacts = Get-ChildItem -Path "source/out/make" -Recurse -File | Where-Object { $_.Extension -in @('.exe', '.zip') } | ForEach-Object { $_.FullName }
-          Write-Host "Found artifacts:"
-          $artifacts | ForEach-Object { Write-Host $_ }
-
-      - name: Create release with platform suffix
+      - name: Create release with S3 download links
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.package_version.outputs.version }}
@@ -271,9 +266,11 @@ jobs:
             Windows build of Simplewise Go
             
             Platform: Windows
-          files: |
-            source/out/make/**/*.exe
-            source/out/make/**/*.zip
+            
+            ## Download from S3
+            
+            - [Setup Installer](https://simplewise-go-download.s3.amazonaws.com/${{ steps.package_version.outputs.base_version }}/simplewise-go-Setup-${{ steps.package_version.outputs.base_version }}.exe)
+            - [ZIP Archive](https://simplewise-go-download.s3.amazonaws.com/${{ steps.package_version.outputs.base_version }}/simplewise-go-win32-x64-${{ steps.package_version.outputs.base_version }}.zip)
           draft: false
           prerelease: false
         env:
