@@ -144,22 +144,125 @@ jobs:
 
       - name: Prepare release body
         id: release_body
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.build_info.outputs.version }}
+          BUILD_NUMBER: ${{ steps.build_info.outputs.build_number }}
+          BUILD_DATETIME: ${{ steps.build_info.outputs.build_datetime }}
+          FOLDER_SUFFIX: ${{ steps.build_info.outputs.folder_suffix }}
+          CHANNEL: ${{ env.CHANNEL }}
+          RELEASE_MESSAGE: ${{ github.event.inputs.release_message }}
         run: |
-          if [ -n "${{ github.event.inputs.release_message }}" ]; then
-            RELEASE_BODY="## What's New\n\n${{ github.event.inputs.release_message }}\n\n"
-          else
-            RELEASE_BODY=""
-          fi
+          python3 << 'PYTHON_SCRIPT'
+          import os
+          import re
+          import subprocess
           
-          RELEASE_BODY="${RELEASE_BODY}## Mac\n\n"
-          RELEASE_BODY="${RELEASE_BODY}Download App (Latest)\n\n"
-          RELEASE_BODY="${RELEASE_BODY}- [mac-${{ env.CHANNEL }}-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)\n\n"
-          RELEASE_BODY="${RELEASE_BODY}Older Builds\n\n"
-          RELEASE_BODY="${RELEASE_BODY}- [mac-${{ env.CHANNEL }}-${{ steps.build_info.outputs.build_number }}-${{ steps.build_info.outputs.build_datetime }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)\n"
+          version = os.environ.get('VERSION', '')
+          build_number = os.environ.get('BUILD_NUMBER', '')
+          build_datetime = os.environ.get('BUILD_DATETIME', '')
+          folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
+          channel = os.environ.get('CHANNEL', '')
+          release_message = os.environ.get('RELEASE_MESSAGE', '')
           
-          echo "body<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$RELEASE_BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Fetch existing release body
+          try:
+              result = subprocess.run(
+                  ['gh', 'release', 'view', f'v{version}', '--json', 'body', '--jq', '.body'],
+                  capture_output=True,
+                  text=True,
+                  check=False
+              )
+              existing_body = result.stdout.strip() if result.returncode == 0 else ''
+          except:
+              existing_body = ''
+          
+          latest_mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
+          new_mac_build = f"- [mac-{channel}-{build_number}-{build_datetime}](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
+          
+          if not existing_body:
+              # Create new release body
+              release_body = ""
+              if release_message:
+                  release_body = f"## What's New\n\n{release_message}\n\n"
+              release_body += "## Mac\n\n"
+              release_body += "Download App (Latest)\n\n"
+              release_body += f"{latest_mac_link}\n\n"
+              release_body += "Older Builds\n\n"
+              release_body += f"{new_mac_build}\n"
+          else:
+              # Update existing release body
+              release_body = existing_body
+              
+              # Replace latest Mac link
+              release_body = re.sub(
+                  rf'- \[mac-{re.escape(channel)}-latest\]\([^)]+\)',
+                  latest_mac_link,
+                  release_body
+              )
+              
+              # Replace latest Windows link if it exists (in case Windows was built first)
+              latest_windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}+Setup.exe)"
+              release_body = re.sub(
+                  rf'- \[windows-{re.escape(channel)}-latest\]\([^)]+\)',
+                  latest_windows_link,
+                  release_body
+              )
+              
+              # Append new Mac older build link
+              if "## Mac" in release_body:
+                  lines = release_body.split('\n')
+                  updated_lines = []
+                  in_mac_section = False
+                  in_older_builds = False
+                  mac_older_builds_found = False
+                  
+                  for i, line in enumerate(lines):
+                      if line.startswith("## Mac"):
+                          in_mac_section = True
+                          in_older_builds = False
+                          updated_lines.append(line)
+                      elif line.startswith("## ") and not line.startswith("## Mac"):
+                          if in_mac_section and in_older_builds and not mac_older_builds_found:
+                              updated_lines.append(new_mac_build)
+                              mac_older_builds_found = True
+                          in_mac_section = False
+                          in_older_builds = False
+                          updated_lines.append(line)
+                      elif in_mac_section and line.strip() == "Older Builds":
+                          in_older_builds = True
+                          updated_lines.append(line)
+                      elif in_mac_section and in_older_builds and line.strip().startswith(f"- [mac-{channel}-"):
+                          updated_lines.append(line)
+                          # Check if this is the last older build (next line is empty or new section)
+                          if i + 1 < len(lines):
+                              next_line = lines[i + 1].strip()
+                              if not next_line or next_line.startswith("## ") or next_line.startswith("- [mac-") == False:
+                                  updated_lines.append(new_mac_build)
+                                  mac_older_builds_found = True
+                                  in_older_builds = False
+                      else:
+                          updated_lines.append(line)
+                  
+                  # If we were still in older builds at the end
+                  if in_mac_section and in_older_builds and not mac_older_builds_found:
+                      updated_lines.append(new_mac_build)
+                  
+                  release_body = '\n'.join(updated_lines)
+              else:
+                  # Mac section doesn't exist, add it
+                  release_body += "\n\n## Mac\n\n"
+                  release_body += "Download App (Latest)\n\n"
+                  release_body += f"{latest_mac_link}\n\n"
+                  release_body += "Older Builds\n\n"
+                  release_body += f"{new_mac_build}\n"
+          
+          # Output to GITHUB_OUTPUT
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('body<<EOF\n')
+              f.write(release_body)
+              f.write('\nEOF\n')
+          PYTHON_SCRIPT
 
       - name: Create or update release with S3 download links
         uses: softprops/action-gh-release@v1
@@ -167,7 +270,7 @@ jobs:
           tag_name: v${{ steps.build_info.outputs.version }}
           name: Release v${{ steps.build_info.outputs.version }}
           body: ${{ steps.release_body.outputs.body }}
-          append_body: true
+          append_body: false
           draft: false
           prerelease: false
         env:
@@ -354,23 +457,127 @@ jobs:
 
       - name: Prepare release body
         id: release_body
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.build_info.outputs.version }}
+          BUILD_NUMBER: ${{ steps.build_info.outputs.build_number }}
+          BUILD_DATETIME: ${{ steps.build_info.outputs.build_datetime }}
+          FOLDER_SUFFIX: ${{ steps.build_info.outputs.folder_suffix }}
+          CHANNEL: ${{ env.CHANNEL }}
+          RELEASE_MESSAGE: ${{ github.event.inputs.release_message }}
         shell: pwsh
         run: |
-          if ("${{ github.event.inputs.release_message }}") {
-            $releaseBody = "## What's New`n`n${{ github.event.inputs.release_message }}`n`n"
-          } else {
-            $releaseBody = ""
-          }
+          python -c @"
+          import os
+          import re
+          import subprocess
+          import json
           
-          $releaseBody += "## Windows`n`n"
-          $releaseBody += "Download App (Latest)`n`n"
-          $releaseBody += "- [windows-$env:CHANNEL-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-${{ steps.build_info.outputs.version }}+Setup.exe)`n`n"
-          $releaseBody += "Older Builds`n`n"
-          $releaseBody += "- [windows-$env:CHANNEL-${{ steps.build_info.outputs.build_number }}-${{ steps.build_info.outputs.build_datetime }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-${{ steps.build_info.outputs.version }}+Setup.exe)`n"
+          version = os.environ.get('VERSION', '')
+          build_number = os.environ.get('BUILD_NUMBER', '')
+          build_datetime = os.environ.get('BUILD_DATETIME', '')
+          folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
+          channel = os.environ.get('CHANNEL', '')
+          release_message = os.environ.get('RELEASE_MESSAGE', '')
           
-          echo "body<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          $releaseBody | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          echo "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          # Fetch existing release body
+          try:
+              result = subprocess.run(
+                  ['gh', 'release', 'view', f'v{version}', '--json', 'body', '--jq', '.body'],
+                  capture_output=True,
+                  text=True,
+                  check=False
+              )
+              existing_body = result.stdout.strip() if result.returncode == 0 else ''
+          except:
+              existing_body = ''
+          
+          latest_windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}+Setup.exe)"
+          new_windows_build = f"- [windows-{channel}-{build_number}-{build_datetime}](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}+Setup.exe)"
+          
+          if not existing_body:
+              # Create new release body
+              release_body = ""
+              if release_message:
+                  release_body = f"## What's New\n\n{release_message}\n\n"
+              release_body += "## Windows\n\n"
+              release_body += "Download App (Latest)\n\n"
+              release_body += f"{latest_windows_link}\n\n"
+              release_body += "Older Builds\n\n"
+              release_body += f"{new_windows_build}\n"
+          else:
+              # Update existing release body
+              release_body = existing_body
+              
+              # Replace latest Windows link
+              release_body = re.sub(
+                  rf'- \[windows-{re.escape(channel)}-latest\]\([^)]+\)',
+                  latest_windows_link,
+                  release_body
+              )
+              
+              # Replace latest Mac link if it exists (in case Mac was built first)
+              latest_mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
+              release_body = re.sub(
+                  rf'- \[mac-{re.escape(channel)}-latest\]\([^)]+\)',
+                  latest_mac_link,
+                  release_body
+              )
+              
+              # Append new Windows older build link
+              if "## Windows" in release_body:
+                  lines = release_body.split('\n')
+                  updated_lines = []
+                  in_windows_section = False
+                  in_older_builds = False
+                  windows_older_builds_found = False
+                  
+                  for i, line in enumerate(lines):
+                      if line.startswith("## Windows"):
+                          in_windows_section = True
+                          in_older_builds = False
+                          updated_lines.append(line)
+                      elif line.startswith("## ") and not line.startswith("## Windows"):
+                          if in_windows_section and in_older_builds and not windows_older_builds_found:
+                              updated_lines.append(new_windows_build)
+                              windows_older_builds_found = True
+                          in_windows_section = False
+                          in_older_builds = False
+                          updated_lines.append(line)
+                      elif in_windows_section and line.strip() == "Older Builds":
+                          in_older_builds = True
+                          updated_lines.append(line)
+                      elif in_windows_section and in_older_builds and line.strip().startswith(f"- [windows-{channel}-"):
+                          updated_lines.append(line)
+                          # Check if this is the last older build (next line is empty or new section)
+                          if i + 1 < len(lines):
+                              next_line = lines[i + 1].strip()
+                              if not next_line or next_line.startswith("## ") or (not next_line.startswith("- [windows-")):
+                                  updated_lines.append(new_windows_build)
+                                  windows_older_builds_found = True
+                                  in_older_builds = False
+                      else:
+                          updated_lines.append(line)
+                  
+                  # If we were still in older builds at the end
+                  if in_windows_section and in_older_builds and not windows_older_builds_found:
+                      updated_lines.append(new_windows_build)
+                  
+                  release_body = '\n'.join(updated_lines)
+              else:
+                  # Windows section doesn't exist, add it
+                  release_body += "\n\n## Windows\n\n"
+                  release_body += "Download App (Latest)\n\n"
+                  release_body += f"{latest_windows_link}\n\n"
+                  release_body += "Older Builds\n\n"
+                  release_body += f"{new_windows_build}\n"
+          
+          # Output to GITHUB_OUTPUT
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+              f.write('body<<EOF\n')
+              f.write(release_body)
+              f.write('\nEOF\n')
+          "@
 
       - name: Create or update release with S3 download links
         uses: softprops/action-gh-release@v1
@@ -378,7 +585,7 @@ jobs:
           tag_name: v${{ steps.build_info.outputs.version }}
           name: Release v${{ steps.build_info.outputs.version }}
           body: ${{ steps.release_body.outputs.body }}
-          append_body: true
+          append_body: false
           draft: false
           prerelease: false
         env:
