@@ -133,25 +133,29 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           BUILD_NUMBER=${{ env.BUILD_NUMBER }}
           BUILD_DATE=$(date -u +"%d-%m-%y")
+          BUILD_DATETIME=$(date -u +"%d-%m-%y-%H%M")
           FOLDER_SUFFIX="v${VERSION}-build-${BUILD_NUMBER}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
           echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "build_datetime=$BUILD_DATETIME" >> $GITHUB_OUTPUT
           echo "folder_suffix=$FOLDER_SUFFIX" >> $GITHUB_OUTPUT
           echo "Version: $VERSION, Build: $BUILD_NUMBER, Folder: $FOLDER_SUFFIX"
 
       - name: Prepare release body
         id: release_body
         run: |
-          RELEASE_BODY="## Assets"
-          RELEASE_BODY="${RELEASE_BODY}\n\n### Latest"
-          RELEASE_BODY="${RELEASE_BODY}\n- [mac-${{ env.CHANNEL }}-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)"
-          RELEASE_BODY="${RELEASE_BODY}\n\n### Build #${{ steps.build_info.outputs.build_number }} (Released on ${{ steps.build_info.outputs.build_date }})"
-          RELEASE_BODY="${RELEASE_BODY}\n- [mac-${{ env.CHANNEL }}-${{ steps.build_info.outputs.build_number }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)"
-          
           if [ -n "${{ github.event.inputs.release_message }}" ]; then
-            RELEASE_BODY="## What's New\n\n${{ github.event.inputs.release_message }}\n\n${RELEASE_BODY}"
+            RELEASE_BODY="## What's New\n\n${{ github.event.inputs.release_message }}\n\n"
+          else
+            RELEASE_BODY=""
           fi
+          
+          RELEASE_BODY="${RELEASE_BODY}## Mac\n\n"
+          RELEASE_BODY="${RELEASE_BODY}Download App (Latest)\n\n"
+          RELEASE_BODY="${RELEASE_BODY}- [mac-${{ env.CHANNEL }}-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)\n\n"
+          RELEASE_BODY="${RELEASE_BODY}Older Builds\n\n"
+          RELEASE_BODY="${RELEASE_BODY}- [mac-${{ env.CHANNEL }}-${{ steps.build_info.outputs.build_number }}-${{ steps.build_info.outputs.build_datetime }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)\n"
           
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo -e "$RELEASE_BODY" >> $GITHUB_OUTPUT
@@ -307,10 +311,12 @@ jobs:
           $version = (Get-Content package.json | ConvertFrom-Json).version
           $buildNumber = $env:BUILD_NUMBER
           $buildDate = Get-Date -Format "dd-MM-yy"
+          $buildDateTime = Get-Date -Format "dd-MM-yy-HHmm"
           $folderSuffix = "v$version-build-$buildNumber"
           echo "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "build_number=$buildNumber" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "build_date=$buildDate" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "build_datetime=$buildDateTime" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "folder_suffix=$folderSuffix" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Version: $version, Build: $buildNumber, Folder: $folderSuffix"
 
@@ -318,15 +324,17 @@ jobs:
         id: release_body
         shell: pwsh
         run: |
-          $releaseBody = "## Assets"
-          $releaseBody += "`n`n### Latest"
-          $releaseBody += "`n- [windows-$env:CHANNEL-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)"
-          $releaseBody += "`n`n### Build #${{ steps.build_info.outputs.build_number }} (Released on ${{ steps.build_info.outputs.build_date }})"
-          $releaseBody += "`n- [windows-$env:CHANNEL-${{ steps.build_info.outputs.build_number }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)"
-          
           if ("${{ github.event.inputs.release_message }}") {
-            $releaseBody = "## What's New`n`n${{ github.event.inputs.release_message }}`n`n$releaseBody"
+            $releaseBody = "## What's New`n`n${{ github.event.inputs.release_message }}`n`n"
+          } else {
+            $releaseBody = ""
           }
+          
+          $releaseBody += "## Windows`n`n"
+          $releaseBody += "Download App (Latest)`n`n"
+          $releaseBody += "- [windows-$env:CHANNEL-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)`n`n"
+          $releaseBody += "Older Builds`n`n"
+          $releaseBody += "- [windows-$env:CHANNEL-${{ steps.build_info.outputs.build_number }}-${{ steps.build_info.outputs.build_datetime }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)`n"
           
           echo "body<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           $releaseBody | Out-File -FilePath $env:GITHUB_OUTPUT -Append
