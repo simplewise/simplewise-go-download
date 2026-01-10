@@ -28,6 +28,14 @@ on:
         options:
           - PACKAGED
           - INSTALL
+      channel:
+        description: 'Release channel (beta or stable)'
+        required: false
+        default: 'beta'
+        type: choice
+        options:
+          - beta
+          - stable
 
 permissions:
   contents: write
@@ -40,10 +48,12 @@ jobs:
     env:
       # Ensure CI mode for deterministic installs
       CI: true
+      BUILD_NUMBER: ${{ github.run_number }}
       # AI Models Configuration
       CHAT_MODEL: ${{ github.event.inputs.chat_model }}
       EMBED_MODEL: ${{ github.event.inputs.embed_model }}
       INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
+      CHANNEL: ${{ github.event.inputs.channel }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -54,6 +64,15 @@ jobs:
           repository: simplewise/simplewise-go
           path: source
           token: ${{ secrets.SIMPLEWISE_GO_PAT }}
+
+      - name: Get commit SHA from source repository
+        id: source_commit
+        working-directory: source
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_ENV
+          echo "Source repository commit SHA: $COMMIT_SHA"
 
       - name: Checkout current repository
         uses: actions/checkout@v4
@@ -103,29 +122,37 @@ jobs:
         run: |
           npm run publish
 
-      - name: Get version from package.json
+      - name: Get version and build info
         working-directory: source
-        id: package_version
+        id: build_info
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION-mac" >> $GITHUB_OUTPUT
-          echo "base_version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION-mac"
+          BUILD_NUMBER=${{ env.BUILD_NUMBER }}
+          BUILD_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          FOLDER_SUFFIX="v${VERSION}-build-${BUILD_NUMBER}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "folder_suffix=$FOLDER_SUFFIX" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION, Build: $BUILD_NUMBER, Folder: $FOLDER_SUFFIX"
 
-      - name: Create release with S3 download links
+      - name: Create or update release with S3 download links
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.package_version.outputs.version }}
-          name: Release v${{ steps.package_version.outputs.version }}
+          tag_name: v${{ steps.build_info.outputs.version }}
+          name: Release v${{ steps.build_info.outputs.version }}
           body: |
-            macOS build of Simplewise Go
+            ## macOS Build #${{ steps.build_info.outputs.build_number }}
             
-            Platform: macOS
+            **Build Date:** ${{ steps.build_info.outputs.build_date }}
+            **Channel:** ${{ env.CHANNEL }}
+            **Commit:** `${{ steps.source_commit.outputs.commit_sha }}`
             
-            ## Download from S3
+            ### Download from S3
             
-            - [DMG Installer](https://simplewise-go-download.s3.amazonaws.com/${{ steps.package_version.outputs.base_version }}/simplewise-go-${{ steps.package_version.outputs.base_version }}-darwin-x64.dmg)
-            - [ZIP Archive](https://simplewise-go-download.s3.amazonaws.com/${{ steps.package_version.outputs.base_version }}/simplewise-go-darwin-x64-${{ steps.package_version.outputs.base_version }}.zip)
+            - [DMG Installer](https://simplewise-go-download.s3.amazonaws.com/simplewise-go/${{ steps.build_info.outputs.folder_suffix }}/simplewise-go-${{ steps.build_info.outputs.version }}-darwin-x64.dmg)
+            - [ZIP Archive](https://simplewise-go-download.s3.amazonaws.com/simplewise-go/${{ steps.build_info.outputs.folder_suffix }}/simplewise-go-darwin-x64-${{ steps.build_info.outputs.version }}.zip)
+          append_body: true
           draft: false
           prerelease: false
         env:
@@ -137,10 +164,12 @@ jobs:
 
     env:
       CI: true
+      BUILD_NUMBER: ${{ github.run_number }}
       # AI Models Configuration
       CHAT_MODEL: ${{ github.event.inputs.chat_model }}
       EMBED_MODEL: ${{ github.event.inputs.embed_model }}
       INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
+      CHANNEL: ${{ github.event.inputs.channel }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -151,6 +180,16 @@ jobs:
           repository: simplewise/simplewise-go
           path: source
           token: ${{ secrets.SIMPLEWISE_GO_PAT }}
+
+      - name: Get commit SHA from source repository
+        id: source_commit
+        working-directory: source
+        shell: pwsh
+        run: |
+          $commitSha = git rev-parse HEAD
+          echo "commit_sha=$commitSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "COMMIT_SHA=$commitSha" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Source repository commit SHA: $commitSha"
 
       - name: Checkout current repository
         uses: actions/checkout@v4
@@ -249,30 +288,38 @@ jobs:
         run: |
           npm run publish
 
-      - name: Get version from package.json
+      - name: Get version and build info
         working-directory: source
-        id: package_version
+        id: build_info
+        shell: pwsh
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
-          $versionWithSuffix = "$version-win"
-          echo "version=$versionWithSuffix" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          echo "base_version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Version: $versionWithSuffix"
+          $buildNumber = $env:BUILD_NUMBER
+          $buildDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC"
+          $folderSuffix = "v$version-build-$buildNumber"
+          echo "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "build_number=$buildNumber" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "build_date=$buildDate" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "folder_suffix=$folderSuffix" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Version: $version, Build: $buildNumber, Folder: $folderSuffix"
 
-      - name: Create release with S3 download links
+      - name: Create or update release with S3 download links
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.package_version.outputs.version }}
-          name: Release v${{ steps.package_version.outputs.version }}
+          tag_name: v${{ steps.build_info.outputs.version }}
+          name: Release v${{ steps.build_info.outputs.version }}
           body: |
-            Windows build of Simplewise Go
+            ## Windows Build #${{ steps.build_info.outputs.build_number }}
             
-            Platform: Windows
+            **Build Date:** ${{ steps.build_info.outputs.build_date }}
+            **Channel:** ${{ env.CHANNEL }}
+            **Commit:** `${{ steps.source_commit.outputs.commit_sha }}`
             
-            ## Download from S3
+            ### Download from S3
             
-            - [Setup Installer](https://simplewise-go-download.s3.amazonaws.com/${{ steps.package_version.outputs.base_version }}/simplewise-go-Setup-${{ steps.package_version.outputs.base_version }}.exe)
-            - [ZIP Archive](https://simplewise-go-download.s3.amazonaws.com/${{ steps.package_version.outputs.base_version }}/simplewise-go-win32-x64-${{ steps.package_version.outputs.base_version }}.zip)
+            - [Setup Installer](https://simplewise-go-download.s3.amazonaws.com/simplewise-go/${{ steps.build_info.outputs.folder_suffix }}/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)
+            - [ZIP Archive](https://simplewise-go-download.s3.amazonaws.com/simplewise-go/${{ steps.build_info.outputs.folder_suffix }}/simplewise-go-win32-x64-${{ steps.build_info.outputs.version }}.zip)
+          append_body: true
           draft: false
           prerelease: false
         env:
