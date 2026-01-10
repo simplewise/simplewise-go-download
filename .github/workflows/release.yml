@@ -36,6 +36,10 @@ on:
         options:
           - beta
           - stable
+      release_message:
+        description: 'Optional release message for Whats New section'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -136,19 +140,29 @@ jobs:
           echo "folder_suffix=$FOLDER_SUFFIX" >> $GITHUB_OUTPUT
           echo "Version: $VERSION, Build: $BUILD_NUMBER, Folder: $FOLDER_SUFFIX"
 
+      - name: Prepare release body
+        id: release_body
+        run: |
+          RELEASE_BODY="## Assets"
+          RELEASE_BODY="${RELEASE_BODY}\n\n### Latest"
+          RELEASE_BODY="${RELEASE_BODY}\n- [mac-${{ env.CHANNEL }}-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)"
+          RELEASE_BODY="${RELEASE_BODY}\n\n### Build #${{ steps.build_info.outputs.build_number }} (Released on ${{ steps.build_info.outputs.build_date }})"
+          RELEASE_BODY="${RELEASE_BODY}\n- [mac-${{ env.CHANNEL }}-${{ steps.build_info.outputs.build_number }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)"
+          
+          if [ -n "${{ github.event.inputs.release_message }}" ]; then
+            RELEASE_BODY="## What's New\n\n${{ github.event.inputs.release_message }}\n\n${RELEASE_BODY}"
+          fi
+          
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$RELEASE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create or update release with S3 download links
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.build_info.outputs.version }}
           name: Release v${{ steps.build_info.outputs.version }}
-          body: |
-            Released on ${{ steps.build_info.outputs.build_date }}
-            
-            Mac App
-            
-            ### Download
-            
-            - [DMG Installer](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/darwin/arm64/simplewise-go-${{ steps.build_info.outputs.version }}-arm64.dmg)
+          body: ${{ steps.release_body.outputs.body }}
           append_body: true
           draft: false
           prerelease: false
@@ -300,19 +314,30 @@ jobs:
           echo "folder_suffix=$folderSuffix" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Version: $version, Build: $buildNumber, Folder: $folderSuffix"
 
+      - name: Prepare release body
+        id: release_body
+        shell: pwsh
+        run: |
+          $releaseBody = "## Assets"
+          $releaseBody += "`n`n### Latest"
+          $releaseBody += "`n- [windows-$env:CHANNEL-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)"
+          $releaseBody += "`n`n### Build #${{ steps.build_info.outputs.build_number }} (Released on ${{ steps.build_info.outputs.build_date }})"
+          $releaseBody += "`n- [windows-$env:CHANNEL-${{ steps.build_info.outputs.build_number }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)"
+          
+          if ("${{ github.event.inputs.release_message }}") {
+            $releaseBody = "## What's New`n`n${{ github.event.inputs.release_message }}`n`n$releaseBody"
+          }
+          
+          echo "body<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $releaseBody | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Create or update release with S3 download links
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.build_info.outputs.version }}
           name: Release v${{ steps.build_info.outputs.version }}
-          body: |
-            Released on ${{ steps.build_info.outputs.build_date }}
-            
-            Windows App
-            
-            ### Download
-            
-            - [Setup Installer](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)
+          body: ${{ steps.release_body.outputs.body }}
           append_body: true
           draft: false
           prerelease: false
