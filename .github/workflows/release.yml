@@ -294,6 +294,38 @@ jobs:
             Write-Host "Removed macOS binaries for Windows build"
           }
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Windows DLL files from S3
+        working-directory: source
+        shell: pwsh
+        run: |
+          # Create the target directory if it doesn't exist
+          $targetDir = "resources/ollama/ollama-windows/ollama"
+          if (-not (Test-Path $targetDir)) {
+            New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+            Write-Host "Created directory: $targetDir"
+          }
+          
+          # Download all files from S3 bucket
+          Write-Host "Downloading files from s3://simplewise-go-download-windowsdll to $targetDir"
+          aws s3 sync s3://simplewise-go-download-windowsdll $targetDir --region $env:AWS_REGION
+          
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Successfully downloaded files from S3 bucket"
+            $files = Get-ChildItem -Path $targetDir -Recurse
+            Write-Host "Downloaded $($files.Count) file(s):"
+            $files | ForEach-Object { Write-Host "  - $($_.FullName.Replace((Resolve-Path $targetDir).Path + '\', ''))" }
+          } else {
+            Write-Error "Failed to download files from S3 bucket"
+            exit 1
+          }
+
       - name: Build and Publish with Electron Forge (Windows)
         working-directory: source
         shell: pwsh
