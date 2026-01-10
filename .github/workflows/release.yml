@@ -364,9 +364,9 @@ jobs:
           
           $releaseBody += "## Windows`n`n"
           $releaseBody += "Download App (Latest)`n`n"
-          $releaseBody += "- [windows-$env:CHANNEL-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)`n`n"
+          $releaseBody += "- [windows-$env:CHANNEL-latest](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-${{ steps.build_info.outputs.version }}+Setup.exe)`n`n"
           $releaseBody += "Older Builds`n`n"
-          $releaseBody += "- [windows-$env:CHANNEL-${{ steps.build_info.outputs.build_number }}-${{ steps.build_info.outputs.build_datetime }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-Setup-${{ steps.build_info.outputs.version }}.exe)`n"
+          $releaseBody += "- [windows-$env:CHANNEL-${{ steps.build_info.outputs.build_number }}-${{ steps.build_info.outputs.build_datetime }}](https://simplewise-go-download.s3.amazonaws.com/${{ steps.build_info.outputs.folder_suffix }}/win32/x64/simplewise-go-${{ steps.build_info.outputs.version }}+Setup.exe)`n"
           
           echo "body<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           $releaseBody | Out-File -FilePath $env:GITHUB_OUTPUT -Append
