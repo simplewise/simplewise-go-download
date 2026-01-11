@@ -178,84 +178,39 @@ jobs:
               existing_body = ''
           
           latest_mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
-          new_mac_build = f"- [mac-{channel}-{build_number}-{build_datetime}](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
           
           if not existing_body:
-              # Create new release body
+              # Create new release body with both sections
               release_body = ""
               if release_message:
                   release_body = f"## What's New\n\n{release_message}\n\n"
               release_body += "## Mac\n\n"
-              release_body += "Download App (Latest)\n\n"
               release_body += f"{latest_mac_link}\n\n"
-              release_body += "Older Builds\n\n"
-              release_body += f"{new_mac_build}\n"
+              release_body += "## Windows\n\n"
+              release_body += "- [windows-{}-latest](link-will-be-updated-when-windows-build-runs)\n".format(channel)
           else:
               # Update existing release body
               release_body = existing_body
               
-              # Replace latest Mac link
+              # Ensure both Mac and Windows sections exist
+              if "## Mac" not in release_body:
+                  # Add Mac section before Windows if Windows exists, otherwise at the end
+                  if "## Windows" in release_body:
+                      release_body = release_body.replace("## Windows", f"## Mac\n\n{latest_mac_link}\n\n## Windows")
+                  else:
+                      release_body += "\n\n## Mac\n\n"
+                      release_body += f"{latest_mac_link}\n"
+              
+              if "## Windows" not in release_body:
+                  release_body += "\n\n## Windows\n\n"
+                  release_body += "- [windows-{}-latest](link-will-be-updated-when-windows-build-runs)\n".format(channel)
+              
+              # Replace latest Mac link only
               release_body = re.sub(
                   rf'- \[mac-{re.escape(channel)}-latest\]\([^)]+\)',
                   latest_mac_link,
                   release_body
               )
-              
-              # Replace latest Windows link if it exists (in case Windows was built first)
-              latest_windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}+Setup.exe)"
-              release_body = re.sub(
-                  rf'- \[windows-{re.escape(channel)}-latest\]\([^)]+\)',
-                  latest_windows_link,
-                  release_body
-              )
-              
-              # Append new Mac older build link
-              if "## Mac" in release_body:
-                  lines = release_body.split('\n')
-                  updated_lines = []
-                  in_mac_section = False
-                  in_older_builds = False
-                  mac_older_builds_found = False
-                  
-                  for i, line in enumerate(lines):
-                      if line.startswith("## Mac"):
-                          in_mac_section = True
-                          in_older_builds = False
-                          updated_lines.append(line)
-                      elif line.startswith("## ") and not line.startswith("## Mac"):
-                          if in_mac_section and in_older_builds and not mac_older_builds_found:
-                              updated_lines.append(new_mac_build)
-                              mac_older_builds_found = True
-                          in_mac_section = False
-                          in_older_builds = False
-                          updated_lines.append(line)
-                      elif in_mac_section and line.strip() == "Older Builds":
-                          in_older_builds = True
-                          updated_lines.append(line)
-                      elif in_mac_section and in_older_builds and line.strip().startswith(f"- [mac-{channel}-"):
-                          updated_lines.append(line)
-                          # Check if this is the last older build (next line is empty or new section)
-                          if i + 1 < len(lines):
-                              next_line = lines[i + 1].strip()
-                              if not next_line or next_line.startswith("## ") or next_line.startswith("- [mac-") == False:
-                                  updated_lines.append(new_mac_build)
-                                  mac_older_builds_found = True
-                                  in_older_builds = False
-                      else:
-                          updated_lines.append(line)
-                  
-                  # If we were still in older builds at the end
-                  if in_mac_section and in_older_builds and not mac_older_builds_found:
-                      updated_lines.append(new_mac_build)
-                  
-                  release_body = '\n'.join(updated_lines)
-              else:
-                  # Mac section doesn't exist, add it
-                  release_body += "\n\n## Mac\n\n"
-                  release_body += "Download App (Latest)\n\n"
-                  release_body += f"{latest_mac_link}\n\n"
-                  release_body += "Older Builds\n\n"
-                  release_body += f"{new_mac_build}\n"
           
           # Output to GITHUB_OUTPUT
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
@@ -493,84 +448,39 @@ jobs:
               existing_body = ''
           
           latest_windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}+Setup.exe)"
-          new_windows_build = f"- [windows-{channel}-{build_number}-{build_datetime}](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}+Setup.exe)"
           
           if not existing_body:
-              # Create new release body
+              # Create new release body with both sections
               release_body = ""
               if release_message:
                   release_body = f"## What's New\n\n{release_message}\n\n"
+              release_body += "## Mac\n\n"
+              release_body += "- [mac-{}-latest](link-will-be-updated-when-mac-build-runs)\n\n".format(channel)
               release_body += "## Windows\n\n"
-              release_body += "Download App (Latest)\n\n"
-              release_body += f"{latest_windows_link}\n\n"
-              release_body += "Older Builds\n\n"
-              release_body += f"{new_windows_build}\n"
+              release_body += f"{latest_windows_link}\n"
           else:
               # Update existing release body
               release_body = existing_body
               
-              # Replace latest Windows link
+              # Ensure both Mac and Windows sections exist
+              if "## Mac" not in release_body:
+                  # Add Mac section before Windows if Windows exists, otherwise at the end
+                  if "## Windows" in release_body:
+                      release_body = release_body.replace("## Windows", f"## Mac\n\n- [mac-{channel}-latest](link-will-be-updated-when-mac-build-runs)\n\n## Windows")
+                  else:
+                      release_body += "\n\n## Mac\n\n"
+                      release_body += "- [mac-{}-latest](link-will-be-updated-when-mac-build-runs)\n".format(channel)
+              
+              if "## Windows" not in release_body:
+                  release_body += "\n\n## Windows\n\n"
+                  release_body += f"{latest_windows_link}\n"
+              
+              # Replace latest Windows link only
               release_body = re.sub(
                   rf'- \[windows-{re.escape(channel)}-latest\]\([^)]+\)',
                   latest_windows_link,
                   release_body
               )
-              
-              # Replace latest Mac link if it exists (in case Mac was built first)
-              latest_mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
-              release_body = re.sub(
-                  rf'- \[mac-{re.escape(channel)}-latest\]\([^)]+\)',
-                  latest_mac_link,
-                  release_body
-              )
-              
-              # Append new Windows older build link
-              if "## Windows" in release_body:
-                  lines = release_body.split('\n')
-                  updated_lines = []
-                  in_windows_section = False
-                  in_older_builds = False
-                  windows_older_builds_found = False
-                  
-                  for i, line in enumerate(lines):
-                      if line.startswith("## Windows"):
-                          in_windows_section = True
-                          in_older_builds = False
-                          updated_lines.append(line)
-                      elif line.startswith("## ") and not line.startswith("## Windows"):
-                          if in_windows_section and in_older_builds and not windows_older_builds_found:
-                              updated_lines.append(new_windows_build)
-                              windows_older_builds_found = True
-                          in_windows_section = False
-                          in_older_builds = False
-                          updated_lines.append(line)
-                      elif in_windows_section and line.strip() == "Older Builds":
-                          in_older_builds = True
-                          updated_lines.append(line)
-                      elif in_windows_section and in_older_builds and line.strip().startswith(f"- [windows-{channel}-"):
-                          updated_lines.append(line)
-                          # Check if this is the last older build (next line is empty or new section)
-                          if i + 1 < len(lines):
-                              next_line = lines[i + 1].strip()
-                              if not next_line or next_line.startswith("## ") or (not next_line.startswith("- [windows-")):
-                                  updated_lines.append(new_windows_build)
-                                  windows_older_builds_found = True
-                                  in_older_builds = False
-                      else:
-                          updated_lines.append(line)
-                  
-                  # If we were still in older builds at the end
-                  if in_windows_section and in_older_builds and not windows_older_builds_found:
-                      updated_lines.append(new_windows_build)
-                  
-                  release_body = '\n'.join(updated_lines)
-              else:
-                  # Windows section doesn't exist, add it
-                  release_body += "\n\n## Windows\n\n"
-                  release_body += "Download App (Latest)\n\n"
-                  release_body += f"{latest_windows_link}\n\n"
-                  release_body += "Older Builds\n\n"
-                  release_body += f"{new_windows_build}\n"
           
           # Output to GITHUB_OUTPUT
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
