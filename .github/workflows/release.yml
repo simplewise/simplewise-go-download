@@ -420,7 +420,6 @@ jobs:
           FOLDER_SUFFIX: ${{ steps.build_info.outputs.folder_suffix }}
           CHANNEL: ${{ env.CHANNEL }}
           RELEASE_MESSAGE: ${{ github.event.inputs.release_message }}
-          AWS_REGION: ${{ env.AWS_REGION }}
         shell: pwsh
         run: |
           python -c @"
@@ -435,7 +434,6 @@ jobs:
           folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
-          aws_region = os.environ.get('AWS_REGION', '')
           
           # Fetch existing release body
           try:
@@ -449,13 +447,7 @@ jobs:
           except:
               existing_body = ''
           
-          # Construct S3 URL with region if provided, otherwise use default
-          if aws_region:
-              s3_base_url = f"https://simplewise-go-download.s3.{aws_region}.amazonaws.com"
-          else:
-              s3_base_url = "https://simplewise-go-download.s3.amazonaws.com"
-          
-          latest_windows_link = f"- [windows-{channel}-latest]({s3_base_url}/{folder_suffix}/win32/x64/simplewise-go-win32-x64-{version}.zip)"
+          latest_windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}+Setup.exe)"
           
           if not existing_body:
               # Create new release body with both sections
