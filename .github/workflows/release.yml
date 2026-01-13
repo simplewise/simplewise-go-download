@@ -123,6 +123,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           npm run publish
 
@@ -390,6 +391,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           npm run publish
 
@@ -447,7 +449,7 @@ jobs:
           except:
               existing_body = ''
           
-          latest_windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}+Setup.exe)"
+          latest_windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-win32-x64-{version}.zip)"
           
           if not existing_body:
               # Create new release body with both sections
