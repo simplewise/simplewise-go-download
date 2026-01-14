@@ -365,7 +365,7 @@ jobs:
         shell: pwsh
         run: |
           # Create the target directory if it doesn't exist
-          $targetDir = "resources/ollama/ollama-windows/ollama"
+          $targetDir = "resources/ollama/ollama-windows/lib/ollama"
           if (-not (Test-Path $targetDir)) {
             New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
             Write-Host "Created directory: $targetDir"
