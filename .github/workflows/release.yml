@@ -61,6 +61,9 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      UPDATE_BUCKET: simplewise-go-download
+      UPDATE_REGION: eu-north-1
+      UPDATE_BASE_URL: https://simplewise-go-download.s3.eu-north-1.amazonaws.com
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
@@ -163,7 +166,7 @@ jobs:
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
           
-          mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
+          mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
           
           # Create release body for Mac only
           release_body = ""
@@ -206,6 +209,9 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      UPDATE_BUCKET: simplewise-go-download
+      UPDATE_REGION: eu-north-1
+      UPDATE_BASE_URL: https://simplewise-go-download.s3.eu-north-1.amazonaws.com
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
