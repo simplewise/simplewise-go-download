@@ -24,14 +24,6 @@ on:
         options:
           - beta
           - stable
-      installation_mode:
-        description: 'Model installation mode (INSTALL = download at runtime, PACKAGED = bundle models at build)'
-        required: false
-        default: 'INSTALL'
-        type: choice
-        options:
-          - INSTALL
-          - PACKAGED
       release_message:
         description: 'Optional release message for Whats New section'
         required: false
@@ -49,7 +41,6 @@ jobs:
       CI: true
       BUILD_NUMBER: ${{ github.run_number }}
       GPU_LAYERS: ${{ github.event.inputs.gpu_layers }}
-      INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
       MODEL_DOWNLOAD_BASE_URL: https://simplewise-go-model-downloads.s3.eu-central-1.amazonaws.com/models
       COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
       COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
@@ -98,14 +89,6 @@ jobs:
         working-directory: source
         run: |
           npx --yes electron-rebuild -f -w better-sqlite3 || npm rebuild better-sqlite3 --runtime=electron --target=$(node -p "require('electron/package.json').version")
-
-      - name: Download models for PACKAGED build
-        if: ${{ github.event.inputs.installation_mode == 'PACKAGED' }}
-        working-directory: source
-        run: |
-          mkdir -p resources/models
-          aws s3 cp s3://simplewise-go-model-downloads/models/gemma-3n-E2B-it-Q4_K_M.gguf resources/models/ --region eu-central-1
-          aws s3 cp s3://simplewise-go-model-downloads/models/embeddinggemma-300M-Q8_0.gguf resources/models/ --region eu-central-1
 
       - name: Build and Publish with Electron Forge (macOS)
         working-directory: source
@@ -182,7 +165,6 @@ jobs:
       CI: true
       BUILD_NUMBER: ${{ github.run_number }}
       GPU_LAYERS: ${{ github.event.inputs.gpu_layers }}
-      INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
       MODEL_DOWNLOAD_BASE_URL: https://simplewise-go-model-downloads.s3.eu-central-1.amazonaws.com/models
       COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
       COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
@@ -282,15 +264,6 @@ jobs:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Download models for PACKAGED build
-        if: ${{ github.event.inputs.installation_mode == 'PACKAGED' }}
-        working-directory: source
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path "resources/models" -Force | Out-Null
-          aws s3 cp s3://simplewise-go-model-downloads/models/gemma-3n-E2B-it-Q4_K_M.gguf resources/models/ --region eu-central-1
-          aws s3 cp s3://simplewise-go-model-downloads/models/embeddinggemma-300M-Q8_0.gguf resources/models/ --region eu-central-1
 
       - name: Build and Publish with Electron Forge (Windows)
         working-directory: source
