@@ -12,22 +12,10 @@ on:
           - mac
           - windows
           - all
-      chat_model:
-        description: 'Chat model for conversation (e.g. gemma3:270m or gemma3n:e2b)'
+      gpu_layers:
+        description: 'GPU layers to offload (-1 = auto, 0 = CPU only)'
         required: false
-        default: 'gemma3n:e2b'
-      embed_model:
-        description: 'Embedding model for knowledge base (e.g. embeddinggemma:300m)'
-        required: false
-        default: 'embeddinggemma:300m'
-      installation_mode:
-        description: 'Installation mode: PACKAGED (models bundled) or INSTALL (models need installation)'
-        required: false
-        default: 'INSTALL'
-        type: choice
-        options:
-          - PACKAGED
-          - INSTALL
+        default: '-1'
       channel:
         description: 'Release channel (beta or stable)'
         required: false
@@ -54,10 +42,18 @@ jobs:
       CI: true
       BUILD_NUMBER: ${{ github.run_number }}
       # AI Models Configuration
-      CHAT_MODEL: ${{ github.event.inputs.chat_model }}
-      EMBED_MODEL: ${{ github.event.inputs.embed_model }}
+      CHAT_MODEL_FILE: ${{ github.event.inputs.chat_model_file }}
+      EMBED_MODEL_FILE: ${{ github.event.inputs.embed_model_file }}
+      GPU_LAYERS: ${{ github.event.inputs.gpu_layers }}
       INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
+      MODEL_DOWNLOAD_BASE_URL: https://simplewise-go-model-downloads.s3.eu-central-1.amazonaws.com/models
+      # Auth & API
+      COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
+      COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+      SIMPLEWISE_API_URL: ${{ secrets.SIMPLEWISE_API_URL }}
+      # Release
       CHANNEL: ${{ github.event.inputs.channel }}
+      # AWS credentials
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -158,23 +154,23 @@ jobs:
         run: |
           python3 << 'PYTHON_SCRIPT'
           import os
-          
+
           version = os.environ.get('VERSION', '')
           build_number = os.environ.get('BUILD_NUMBER', '')
           build_datetime = os.environ.get('BUILD_DATETIME', '')
           folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
-          
+
           mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
-          
+
           # Create release body for Mac only
           release_body = ""
           if release_message:
               release_body = f"## What's New\n\n{release_message}\n\n"
           release_body += "## Download\n\n"
           release_body += f"{mac_link}\n"
-          
+
           # Output to GITHUB_OUTPUT
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write('body<<EOF\n')
@@ -202,10 +198,18 @@ jobs:
       CI: true
       BUILD_NUMBER: ${{ github.run_number }}
       # AI Models Configuration
-      CHAT_MODEL: ${{ github.event.inputs.chat_model }}
-      EMBED_MODEL: ${{ github.event.inputs.embed_model }}
+      CHAT_MODEL_FILE: ${{ github.event.inputs.chat_model_file }}
+      EMBED_MODEL_FILE: ${{ github.event.inputs.embed_model_file }}
+      GPU_LAYERS: ${{ github.event.inputs.gpu_layers }}
       INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
+      MODEL_DOWNLOAD_BASE_URL: https://simplewise-go-model-downloads.s3.eu-central-1.amazonaws.com/models
+      # Auth & API
+      COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
+      COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+      SIMPLEWISE_API_URL: ${{ secrets.SIMPLEWISE_API_URL }}
+      # Release
       CHANNEL: ${{ github.event.inputs.channel }}
+      # AWS credentials
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -262,7 +266,7 @@ jobs:
           $maxRetries = 3
           $retryCount = 0
           $success = $false
-          
+
           while ($retryCount -lt $maxRetries -and -not $success) {
             try {
               Write-Host "Attempt $($retryCount + 1) of $maxRetries"
@@ -335,11 +339,11 @@ jobs:
             New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
             Write-Host "Created directory: $targetDir"
           }
-          
+
           # Download all files from S3 bucket
           Write-Host "Downloading files from s3://simplewise-go-download-windowsdll to $targetDir"
           aws s3 sync s3://simplewise-go-download-windowsdll $targetDir --region $env:AWS_REGION
-          
+
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Successfully downloaded files from S3 bucket"
             $files = Get-ChildItem -Path $targetDir -Recurse
@@ -390,23 +394,23 @@ jobs:
         run: |
           python -c @"
           import os
-          
+
           version = os.environ.get('VERSION', '')
           build_number = os.environ.get('BUILD_NUMBER', '')
           build_datetime = os.environ.get('BUILD_DATETIME', '')
           folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
-          
+
           windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-win32-x64-{version}.zip)"
-          
+
           # Create release body for Windows only
           release_body = ""
           if release_message:
               release_body = f"## What's New\n\n{release_message}\n\n"
           release_body += "## Download\n\n"
           release_body += f"{windows_link}\n"
-          
+
           # Output to GITHUB_OUTPUT
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
               f.write('body<<EOF\n')
@@ -425,4 +429,3 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
