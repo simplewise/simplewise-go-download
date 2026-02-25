@@ -24,6 +24,14 @@ on:
         options:
           - beta
           - stable
+      installation_mode:
+        description: 'Model installation mode (INSTALL = download at runtime, PACKAGED = bundle models at build)'
+        required: false
+        default: 'INSTALL'
+        type: choice
+        options:
+          - INSTALL
+          - PACKAGED
       release_message:
         description: 'Optional release message for Whats New section'
         required: false
@@ -38,22 +46,15 @@ jobs:
     if: ${{ github.event.inputs.platform == 'mac' || github.event.inputs.platform == 'all' || !github.event.inputs.platform }}
 
     env:
-      # Ensure CI mode for deterministic installs
       CI: true
       BUILD_NUMBER: ${{ github.run_number }}
-      # AI Models Configuration
-      CHAT_MODEL_FILE: ${{ github.event.inputs.chat_model_file }}
-      EMBED_MODEL_FILE: ${{ github.event.inputs.embed_model_file }}
       GPU_LAYERS: ${{ github.event.inputs.gpu_layers }}
       INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
       MODEL_DOWNLOAD_BASE_URL: https://simplewise-go-model-downloads.s3.eu-central-1.amazonaws.com/models
-      # Auth & API
       COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
       COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
       SIMPLEWISE_API_URL: ${{ secrets.SIMPLEWISE_API_URL }}
-      # Release
       CHANNEL: ${{ github.event.inputs.channel }}
-      # AWS credentials
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -96,26 +97,15 @@ jobs:
       - name: Rebuild native modules for Electron
         working-directory: source
         run: |
-          # Rebuild better-sqlite3 for Electron's Node.js version
           npx --yes electron-rebuild -f -w better-sqlite3 || npm rebuild better-sqlite3 --runtime=electron --target=$(node -p "require('electron/package.json').version")
 
-      - name: Start Ollama server and install current model
-        if: ${{ github.event.inputs.installation_mode != 'INSTALL' }}
+      - name: Download models for PACKAGED build
+        if: ${{ github.event.inputs.installation_mode == 'PACKAGED' }}
         working-directory: source
         run: |
-          npm run ollama -- serve &
-          # Give the server a moment to start
-          sleep 5
-          # Install the currently configured model into resources/ollama/models
-          npm run ollama -- install
-
-      - name: Remove Windows binaries (macOS build)
-        working-directory: source
-        run: |
-          if [ -d "resources/ollama/ollama-windows" ]; then
-            rm -rf resources/ollama/ollama-windows
-            echo "Removed Windows binaries for macOS build"
-          fi
+          mkdir -p resources/models
+          aws s3 cp s3://simplewise-go-model-downloads/models/gemma-3n-E2B-it-Q4_K_M.gguf resources/models/ --region eu-central-1
+          aws s3 cp s3://simplewise-go-model-downloads/models/embeddinggemma-300M-Q8_0.gguf resources/models/ --region eu-central-1
 
       - name: Build and Publish with Electron Forge (macOS)
         working-directory: source
@@ -154,24 +144,18 @@ jobs:
         run: |
           python3 << 'PYTHON_SCRIPT'
           import os
-
           version = os.environ.get('VERSION', '')
           build_number = os.environ.get('BUILD_NUMBER', '')
           build_datetime = os.environ.get('BUILD_DATETIME', '')
           folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
-
           mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
-
-          # Create release body for Mac only
           release_body = ""
           if release_message:
               release_body = f"## What's New\n\n{release_message}\n\n"
           release_body += "## Download\n\n"
           release_body += f"{mac_link}\n"
-
-          # Output to GITHUB_OUTPUT
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write('body<<EOF\n')
               f.write(release_body)
@@ -197,19 +181,13 @@ jobs:
     env:
       CI: true
       BUILD_NUMBER: ${{ github.run_number }}
-      # AI Models Configuration
-      CHAT_MODEL_FILE: ${{ github.event.inputs.chat_model_file }}
-      EMBED_MODEL_FILE: ${{ github.event.inputs.embed_model_file }}
       GPU_LAYERS: ${{ github.event.inputs.gpu_layers }}
       INSTALLATION_MODE: ${{ github.event.inputs.installation_mode }}
       MODEL_DOWNLOAD_BASE_URL: https://simplewise-go-model-downloads.s3.eu-central-1.amazonaws.com/models
-      # Auth & API
       COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
       COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
       SIMPLEWISE_API_URL: ${{ secrets.SIMPLEWISE_API_URL }}
-      # Release
       CHANNEL: ${{ github.event.inputs.channel }}
-      # AWS credentials
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -250,9 +228,7 @@ jobs:
         working-directory: source
         shell: pwsh
         run: |
-          # Clean npm cache
           npm cache clean --force
-          # Remove node_modules if it exists (ignore errors if files are locked)
           if (Test-Path "node_modules") {
             Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "node_modules"
             Start-Sleep -Seconds 2
@@ -262,11 +238,9 @@ jobs:
         working-directory: source
         shell: pwsh
         run: |
-          # Retry npm ci up to 3 times with delays
           $maxRetries = 3
           $retryCount = 0
           $success = $false
-
           while ($retryCount -lt $maxRetries -and -not $success) {
             try {
               Write-Host "Attempt $($retryCount + 1) of $maxRetries"
@@ -281,7 +255,6 @@ jobs:
               if ($retryCount -lt $maxRetries) {
                 Write-Host "Installation failed, retrying in 5 seconds..."
                 Start-Sleep -Seconds 5
-                # Clean up partially installed files
                 if (Test-Path "node_modules") {
                   Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "node_modules"
                   Start-Sleep -Seconds 2
@@ -297,29 +270,10 @@ jobs:
         working-directory: source
         shell: pwsh
         run: |
-          # Rebuild better-sqlite3 for Electron's Node.js version
           npx --yes electron-rebuild -f -w better-sqlite3
           if ($LASTEXITCODE -ne 0) {
             $electronVersion = (Get-Content node_modules/electron/package.json | ConvertFrom-Json).version
             npm rebuild better-sqlite3 --runtime=electron --target=$electronVersion
-          }
-
-      - name: Start Ollama server and install current model
-        if: ${{ github.event.inputs.installation_mode != 'INSTALL' }}
-        working-directory: source
-        shell: pwsh
-        run: |
-          npm run ollama -- serve &
-          Start-Sleep -Seconds 5
-          npm run ollama -- install
-
-      - name: Remove macOS binaries (Windows build)
-        working-directory: source
-        shell: pwsh
-        run: |
-          if (Test-Path "resources/ollama/ollama-darwin") {
-            Remove-Item -Recurse -Force "resources/ollama/ollama-darwin"
-            Write-Host "Removed macOS binaries for Windows build"
           }
 
       - name: Configure AWS credentials
@@ -329,30 +283,14 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download Windows DLL files from S3
+      - name: Download models for PACKAGED build
+        if: ${{ github.event.inputs.installation_mode == 'PACKAGED' }}
         working-directory: source
         shell: pwsh
         run: |
-          # Create the target directory if it doesn't exist
-          $targetDir = "resources/ollama/ollama-windows/lib/ollama"
-          if (-not (Test-Path $targetDir)) {
-            New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-            Write-Host "Created directory: $targetDir"
-          }
-
-          # Download all files from S3 bucket
-          Write-Host "Downloading files from s3://simplewise-go-download-windowsdll to $targetDir"
-          aws s3 sync s3://simplewise-go-download-windowsdll $targetDir --region $env:AWS_REGION
-
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Successfully downloaded files from S3 bucket"
-            $files = Get-ChildItem -Path $targetDir -Recurse
-            Write-Host "Downloaded $($files.Count) file(s):"
-            $files | ForEach-Object { Write-Host "  - $($_.FullName.Replace((Resolve-Path $targetDir).Path + '\', ''))" }
-          } else {
-            Write-Error "Failed to download files from S3 bucket"
-            exit 1
-          }
+          New-Item -ItemType Directory -Path "resources/models" -Force | Out-Null
+          aws s3 cp s3://simplewise-go-model-downloads/models/gemma-3n-E2B-it-Q4_K_M.gguf resources/models/ --region eu-central-1
+          aws s3 cp s3://simplewise-go-model-downloads/models/embeddinggemma-300M-Q8_0.gguf resources/models/ --region eu-central-1
 
       - name: Build and Publish with Electron Forge (Windows)
         working-directory: source
@@ -394,24 +332,18 @@ jobs:
         run: |
           python -c @"
           import os
-
           version = os.environ.get('VERSION', '')
           build_number = os.environ.get('BUILD_NUMBER', '')
           build_datetime = os.environ.get('BUILD_DATETIME', '')
           folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
-
           windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-win32-x64-{version}.zip)"
-
-          # Create release body for Windows only
           release_body = ""
           if release_message:
               release_body = f"## What's New\n\n{release_message}\n\n"
           release_body += "## Download\n\n"
           release_body += f"{windows_link}\n"
-
-          # Output to GITHUB_OUTPUT
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
               f.write('body<<EOF\n')
               f.write(release_body)
