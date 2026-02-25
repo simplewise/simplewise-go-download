@@ -90,6 +90,18 @@ jobs:
         run: |
           npx --yes electron-rebuild -f -w better-sqlite3 || npm rebuild better-sqlite3 --runtime=electron --target=$(node -p "require('electron/package.json').version")
 
+      - name: Verify build configuration
+        working-directory: source
+        run: |
+          echo "=== Build Configuration ==="
+          echo "MODEL_DOWNLOAD_BASE_URL: $MODEL_DOWNLOAD_BASE_URL"
+          echo "CHAT_MODEL_FILE: ${CHAT_MODEL_FILE:-gemma-3n-E2B-it-Q4_K_M.gguf (default)}"
+          echo "EMBED_MODEL_FILE: ${EMBED_MODEL_FILE:-embeddinggemma-300M-Q8_0.gguf (default)}"
+          echo "GPU_LAYERS: $GPU_LAYERS"
+          echo "CHANNEL: $CHANNEL"
+          echo "BUILD_NUMBER: $BUILD_NUMBER"
+          echo "==========================="
+
       - name: Build and Publish with Electron Forge (macOS)
         working-directory: source
         env:
@@ -264,6 +276,19 @@ jobs:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify build configuration
+        working-directory: source
+        shell: pwsh
+        run: |
+          Write-Host "=== Build Configuration ==="
+          Write-Host "MODEL_DOWNLOAD_BASE_URL: $env:MODEL_DOWNLOAD_BASE_URL"
+          Write-Host "CHAT_MODEL_FILE: $(if ($env:CHAT_MODEL_FILE) { $env:CHAT_MODEL_FILE } else { 'gemma-3n-E2B-it-Q4_K_M.gguf (default)' })"
+          Write-Host "EMBED_MODEL_FILE: $(if ($env:EMBED_MODEL_FILE) { $env:EMBED_MODEL_FILE } else { 'embeddinggemma-300M-Q8_0.gguf (default)' })"
+          Write-Host "GPU_LAYERS: $env:GPU_LAYERS"
+          Write-Host "CHANNEL: $env:CHANNEL"
+          Write-Host "BUILD_NUMBER: $env:BUILD_NUMBER"
+          Write-Host "==========================="
 
       - name: Build and Publish with Electron Forge (Windows)
         working-directory: source
