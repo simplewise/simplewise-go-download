@@ -111,6 +111,26 @@ jobs:
         run: |
           npm run publish
 
+      - name: Verify node-llama-cpp placement (postPackage hook check)
+        working-directory: source
+        run: |
+          echo "=== Verifying node-llama-cpp placement ==="
+          OUT_DIR=$(find out -name "*.app" -maxdepth 4 | head -1)
+          if [ -z "$OUT_DIR" ]; then
+            echo "WARNING: No .app found in out/"
+          else
+            RESOURCES="$OUT_DIR/Contents/Resources"
+            if [ -d "$RESOURCES/node_modules/node-llama-cpp" ]; then
+              echo "✅ node-llama-cpp correctly placed at resources/node_modules/node-llama-cpp"
+            else
+              echo "❌ MISSING: resources/node_modules/node-llama-cpp"
+              echo "   Contents of resources/:"
+              ls "$RESOURCES/" | grep -E "node|llama" || echo "   (nothing matching)"
+              exit 1
+            fi
+          fi
+          echo "=========================================="
+
       - name: Get version and build info
         working-directory: source
         id: build_info
