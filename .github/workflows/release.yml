@@ -120,14 +120,23 @@ jobs:
             echo "WARNING: No .app found in out/"
           else
             RESOURCES="$OUT_DIR/Contents/Resources"
+            FAILED=0
             if [ -d "$RESOURCES/node_modules/node-llama-cpp" ]; then
               echo "✅ node-llama-cpp correctly placed at resources/node_modules/node-llama-cpp"
             else
               echo "❌ MISSING: resources/node_modules/node-llama-cpp"
               echo "   Contents of resources/:"
               ls "$RESOURCES/" | grep -E "node|llama" || echo "   (nothing matching)"
-              exit 1
+              FAILED=1
             fi
+            BINARY_PKG=$(ls "$RESOURCES/node_modules/@node-llama-cpp/" 2>/dev/null | head -1)
+            if [ -n "$BINARY_PKG" ]; then
+              echo "✅ prebuilt binary package present: @node-llama-cpp/$BINARY_PKG"
+            else
+              echo "❌ MISSING: @node-llama-cpp/* prebuilt binary package in resources/node_modules/"
+              FAILED=1
+            fi
+            [ $FAILED -eq 0 ] || exit 1
           fi
           echo "=========================================="
 
@@ -329,6 +338,7 @@ jobs:
           if (-not $outDir) {
             Write-Host "WARNING: No resources dir found in out/"
           } else {
+            $failed = $false
             $nodeModulesPath = Join-Path $outDir.FullName "node_modules\node-llama-cpp"
             if (Test-Path $nodeModulesPath) {
               Write-Host "✅ node-llama-cpp correctly placed at resources/node_modules/node-llama-cpp"
@@ -336,8 +346,17 @@ jobs:
               Write-Host "❌ MISSING: resources/node_modules/node-llama-cpp"
               Write-Host "   Contents of resources/:"
               Get-ChildItem $outDir.FullName | Where-Object { $_.Name -match "node|llama" } | ForEach-Object { Write-Host "   $_" }
-              exit 1
+              $failed = $true
             }
+            $binaryPkgDir = Join-Path $outDir.FullName "node_modules\@node-llama-cpp"
+            $binaryPkg = Get-ChildItem $binaryPkgDir -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($binaryPkg) {
+              Write-Host "✅ prebuilt binary package present: @node-llama-cpp/$($binaryPkg.Name)"
+            } else {
+              Write-Host "❌ MISSING: @node-llama-cpp/* prebuilt binary package in resources/node_modules/"
+              $failed = $true
+            }
+            if ($failed) { exit 1 }
           }
           Write-Host "=========================================="
 
