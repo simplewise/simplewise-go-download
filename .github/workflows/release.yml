@@ -320,6 +320,27 @@ jobs:
         run: |
           npm run publish
 
+      - name: Verify node-llama-cpp placement (postPackage hook check)
+        working-directory: source
+        shell: pwsh
+        run: |
+          Write-Host "=== Verifying node-llama-cpp placement ==="
+          $outDir = Get-ChildItem -Path out -Recurse -Directory -Filter "resources" | Select-Object -First 1
+          if (-not $outDir) {
+            Write-Host "WARNING: No resources dir found in out/"
+          } else {
+            $nodeModulesPath = Join-Path $outDir.FullName "node_modules\node-llama-cpp"
+            if (Test-Path $nodeModulesPath) {
+              Write-Host "✅ node-llama-cpp correctly placed at resources/node_modules/node-llama-cpp"
+            } else {
+              Write-Host "❌ MISSING: resources/node_modules/node-llama-cpp"
+              Write-Host "   Contents of resources/:"
+              Get-ChildItem $outDir.FullName | Where-Object { $_.Name -match "node|llama" } | ForEach-Object { Write-Host "   $_" }
+              exit 1
+            }
+          }
+          Write-Host "=========================================="
+
       - name: Get version and build info
         working-directory: source
         id: build_info
