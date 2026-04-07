@@ -398,7 +398,7 @@ jobs:
           folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
-          windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-{version}.exe)"
+          windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-win32-x64-{version}.zip)"
           release_body = ""
           if release_message:
               release_body = f"## What's New\n\n{release_message}\n\n"
