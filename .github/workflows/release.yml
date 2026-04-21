@@ -41,7 +41,7 @@ jobs:
       CI: true
       BUILD_NUMBER: ${{ github.run_number }}
       GPU_LAYERS: ${{ github.event.inputs.gpu_layers }}
-      MODEL_DOWNLOAD_BASE_URL: https://simplewise-go-model-downloads.s3.eu-central-1.amazonaws.com/models
+      MODEL_DOWNLOAD_BASE_URL: https://didgr5xz08lcv.cloudfront.net/models
       COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
       COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
       SIMPLEWISE_API_URL: ${{ secrets.SIMPLEWISE_API_URL }}
@@ -51,12 +51,13 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       UPDATE_BUCKET: simplewise-go-download
       UPDATE_REGION: eu-north-1
-      UPDATE_BASE_URL: https://simplewise-go-download.s3.eu-north-1.amazonaws.com
+      UPDATE_BASE_URL: https://d2lk4a2pega9cn.cloudfront.net
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
         with:
           repository: simplewise/simplewise-go
+          ref: 81-auto-update
           path: source
           token: ${{ secrets.SIMPLEWISE_GO_PAT }}
 
@@ -174,7 +175,7 @@ jobs:
           folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
-          mac_link = f"- [mac-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
+          mac_link = f"- [mac-{channel}-latest](https://d2lk4a2pega9cn.cloudfront.net/{folder_suffix}/darwin/arm64/simplewise-go-{version}-arm64.dmg)"
           release_body = ""
           if release_message:
               release_body = f"## What's New\n\n{release_message}\n\n"
@@ -206,7 +207,7 @@ jobs:
       CI: true
       BUILD_NUMBER: ${{ github.run_number }}
       GPU_LAYERS: ${{ github.event.inputs.gpu_layers }}
-      MODEL_DOWNLOAD_BASE_URL: https://simplewise-go-model-downloads.s3.eu-central-1.amazonaws.com/models
+      MODEL_DOWNLOAD_BASE_URL: https://didgr5xz08lcv.cloudfront.net/models
       COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
       COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
       SIMPLEWISE_API_URL: ${{ secrets.SIMPLEWISE_API_URL }}
@@ -216,12 +217,13 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       UPDATE_BUCKET: simplewise-go-download
       UPDATE_REGION: eu-north-1
-      UPDATE_BASE_URL: https://simplewise-go-download.s3.eu-north-1.amazonaws.com
+      UPDATE_BASE_URL: https://d2lk4a2pega9cn.cloudfront.net
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
         with:
           repository: simplewise/simplewise-go
+          ref: 81-auto-update
           path: source
           token: ${{ secrets.SIMPLEWISE_GO_PAT }}
 
@@ -396,7 +398,7 @@ jobs:
           folder_suffix = os.environ.get('FOLDER_SUFFIX', '')
           channel = os.environ.get('CHANNEL', '')
           release_message = os.environ.get('RELEASE_MESSAGE', '')
-          windows_link = f"- [windows-{channel}-latest](https://simplewise-go-download.s3.eu-north-1.amazonaws.com/{folder_suffix}/win32/x64/simplewise-go-win32-x64-{version}.zip)"
+          windows_link = f"- [windows-{channel}-latest](https://d2lk4a2pega9cn.cloudfront.net/{folder_suffix}/win32/x64/simplewise-go-win32-x64-{version}.zip)"
           release_body = ""
           if release_message:
               release_body = f"## What's New\n\n{release_message}\n\n"
