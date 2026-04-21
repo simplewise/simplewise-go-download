@@ -419,7 +419,7 @@ jobs:
           windows_zip_link = f'- [windows-{channel}-portable]({base}/simplewise-go-win32-x64-{version}.zip)'
           release_body = ''
           if release_message:
-              release_body = f'## What'\''s New\n\n{release_message}\n\n'
+              release_body = f"## What's New\n\n{release_message}\n\n"
           release_body += '## Download\n\n'
           release_body += f'{windows_installer_link}\n'
           release_body += f'{windows_zip_link}\n'
